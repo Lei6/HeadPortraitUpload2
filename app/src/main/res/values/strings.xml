@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">HeadPortraitUpload</string>
+    <string name="camera_not_prepared">摄像头尚未准备好</string>
+    <string name="sdcard_no_exist">SD卡不存在</string>
 </resources>
