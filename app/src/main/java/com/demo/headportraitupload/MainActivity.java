@@ -1,11 +1,15 @@
 package com.demo.headportraitupload;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,6 +25,8 @@ import com.demo.headportraitupload.utils.PhotoSelectUtil;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private ImageView userHead;
+    // 申请相机权限的requestCode
+    private static final int PERMISSION_CAMERA_REQUEST_CODE = 106;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,7 +76,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnCarema.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                PhotoSelectUtil.get().goToCamera(MainActivity.this);
+                int i = ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA);
+                if (i == PackageManager.PERMISSION_GRANTED) {
+                    PhotoSelectUtil.get().goToCamera(MainActivity.this);
+                } else {
+                    //没有权限，申请权限
+                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, PERMISSION_CAMERA_REQUEST_CODE);
+                }
                 popupWindow.dismiss();
             }
         });
@@ -84,22 +96,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode==PERMISSION_CAMERA_REQUEST_CODE){
+            if (grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED){
+                //允许权限
+                PhotoSelectUtil.get().goToCamera(MainActivity.this);
+            }else {
+                //拒绝权限
+
+            }
+        }
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         PhotoSelectUtil.get().onActivityResult(MainActivity.this, requestCode, resultCode, data, new PhotoSelectUtil.OnResultListener() {
             @Override////拍照回调
             public void takePhotoFinish(String path) {
-                PhotoSelectUtil.get().cropPicture(MainActivity.this, path, 1, 1);
+                GlideUtils.loadImageViewCircleImg(MainActivity.this, path, userHead, R.mipmap.ic_launcher);
+//                PhotoSelectUtil.get().cropPicture(MainActivity.this, path, 1, 1);
             }
 
             @Override////相册回调
             public void selectPictureFinish(String path) {
-                PhotoSelectUtil.get().cropPicture(MainActivity.this, path, 1, 1);
+                GlideUtils.loadImageViewCircleImg(MainActivity.this, path, userHead, R.mipmap.ic_launcher);
+//                PhotoSelectUtil.get().cropPicture(MainActivity.this, path, 1, 1);
             }
 
             @Override//裁图
             public void cropPictureFinish(String path) {
-                Log.e("TAG", "cropPictureFinish: "+path );
                 GlideUtils.loadImageViewCircleImg(MainActivity.this, path, userHead, R.mipmap.ic_launcher);
             }
         });

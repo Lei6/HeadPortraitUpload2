@@ -76,14 +76,7 @@ public class FileUtil {
     }
 
     public static Uri getFileUri(Context context, File file){
-        Uri uri = null;
-        if(Build.VERSION.SDK_INT>= Build.VERSION_CODES.N) {
-            String pn = context.getPackageName();
-            uri = FileProvider.getUriForFile(context.getApplicationContext(), context.getPackageName()+".FileProvider", file);
-        }else{
-            uri = Uri.fromFile(file);
-        }
-        return uri;
+        return FileProvider.getUriForFile(context.getApplicationContext(), context.getPackageName()+".FileProvider", file);
     }
 
 }

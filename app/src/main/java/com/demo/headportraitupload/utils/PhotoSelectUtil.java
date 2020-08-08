@@ -2,6 +2,7 @@ package com.demo.headportraitupload.utils;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -39,6 +40,9 @@ public class PhotoSelectUtil {
     public static final String APP_NAME = "fresh";
     private String imagePath;
 
+    private Uri imgUri;
+
+    private Boolean isAndroidQ = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
 
     public static PhotoSelectUtil get() {
         if (instance == null) {
@@ -54,6 +58,7 @@ public class PhotoSelectUtil {
         //创建拍照储存的图片文件
         DATE = new SimpleDateFormat("yyyy_MMdd_hhmmss").format(new Date());
         if (isSdCardExist()) {
+            Uri contentUri = null;
             imagePath = FileUtil.createImagePath(APP_NAME + DATE);
             File file = new File(imagePath);
             if (!file.getParentFile().exists()) {
@@ -61,16 +66,20 @@ public class PhotoSelectUtil {
             }
             //跳转到系统相机
             Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.N) {
+            if (isAndroidQ){
+                //Android 10.0
+                contentUri = context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,new ContentValues());
+            }else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 //设置7.0中共享文件，分享路径定义在xml/file_paths.xml
                 intent.setFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 //通过FileProvider创建一个content类型的Uri
-                Uri contentUri = FileUtil.getFileUri(context, file);
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, contentUri);
+                 contentUri = FileUtil.getFileUri(context, file);
             } else {
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(file));
+                contentUri = Uri.fromFile(file);
             }
             try {
+                imgUri = contentUri;
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, contentUri);
                 context.startActivityForResult(intent, REQUEST_CAPTURE);
             } catch (ActivityNotFoundException anf) {
                 ToastUtils.show(context, context.getResources().getString(R.string.camera_not_prepared));
@@ -104,30 +113,36 @@ public class PhotoSelectUtil {
 
         switch (requestCode) {
             case REQUEST_CAPTURE://相机
-                if (!TextUtils.isEmpty(imagePath)) {
-                    File file = new File(imagePath);
-                    if (file.isFile() && listener != null)
-                        listener.takePhotoFinish(imagePath);
-                    activity.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, FileUtil.getFileUri(activity, file)));//Uri.fromFile(file)));
-                }
+              if (isAndroidQ){
+               listener.takePhotoFinish(imgUri+"");
+              }else {
+                  if (!TextUtils.isEmpty(imagePath)) {
+                      File file = new File(imagePath);
+                      if (file.isFile() && listener != null)
+                          listener.takePhotoFinish(imagePath);
+                  }
+              }
                 break;
             case REQUEST_PICK://相册
                 if (data!=null){
                     Uri uri = data.getData();
                     if (uri != null) {
-                        String cropImagePath = FileUtil.getRealFilePathFromUri(activity.getApplicationContext(), uri);
-                        File file = new File(cropImagePath);
-                        if (file.isFile() && listener != null)
-                            listener.selectPictureFinish(cropImagePath);
+                      if (isAndroidQ){
+                          listener.selectPictureFinish(uri+"");
+                      }else {
+                          String cropImagePath = FileUtil.getRealFilePathFromUri(activity.getApplicationContext(), uri);
+                          File file = new File(cropImagePath);
+                          if (file.isFile() && listener != null){
+                              listener.selectPictureFinish(cropImagePath);
+                          }
+                      }
                     }
                 }
                 break;
             case REQUEST_CROP_PHOTO:
                 if (!TextUtils.isEmpty(crop_image)) {
                     File file = new File(crop_image);
-                    Log.e(TAG, "onActivityResult:... "+file.isFile());
                     if (file.isFile() && listener != null) {
-                        Log.e(TAG, "onActivityResult:...`1 ");
                         listener.cropPictureFinish(crop_image);
                     }
                     // 最后通知图库更新
